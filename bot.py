@@ -80,6 +80,54 @@ def get_memory_text():
     return text
 
 
+def add_core_memory(content):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO core_memories(content) VALUES(?)",
+        (content,)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_core_memories():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT id, content
+        FROM core_memories
+        ORDER BY id DESC
+        """
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return rows
+
+
+def delete_memory(memory_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "DELETE FROM memories WHERE id=?",
+        (memory_id,)
+    )
+
+    changed = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+
+    return changed > 0
+
+
 def add_task(content):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -189,6 +237,15 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /memory
 查看目前記憶
 
+/forget 編號
+刪除指定記憶
+
+/core
+查看核心記憶
+
+/addcore 內容
+新增核心記憶
+
 /addtask 任務內容
 新增遊戲開發任務
 
@@ -248,6 +305,69 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"{memory_id}. {content}\n"
 
         await send_long_message(update, text)
+        return
+
+    if user_text.startswith("/core"):
+        memories = get_core_memories()
+
+        if not memories:
+            await update.message.reply_text(
+                "目前沒有核心記憶。"
+            )
+            return
+
+        text = "🦞 核心記憶：\n\n"
+
+        for memory_id, content in memories:
+            text += f"{memory_id}. {content}\n"
+
+        await send_long_message(
+            update,
+            text
+        )
+
+        return
+
+    if user_text.startswith("/addcore"):
+        content = (
+            user_text
+            .replace("/addcore", "")
+            .strip()
+        )
+
+        if not content:
+            await update.message.reply_text(
+                "請輸入核心記憶。"
+            )
+            return
+
+        add_core_memory(content)
+
+        await update.message.reply_text(
+            "🦞 已加入核心記憶。"
+        )
+        return
+
+    if user_text.startswith("/forget"):
+        number_text = user_text.replace("/forget", "").strip()
+
+        if not number_text.isdigit():
+            await update.message.reply_text(
+                "請輸入要刪除的記憶編號，例如：/forget 5"
+            )
+            return
+
+        memory_id = int(number_text)
+
+        success = delete_memory(memory_id)
+
+        if not success:
+            await update.message.reply_text("找不到這個記憶編號。")
+            return
+
+        await update.message.reply_text(
+            f"🗑 已刪除記憶 ID：{memory_id}"
+        )
         return
 
     if user_text.startswith("/addtask"):
@@ -325,6 +445,10 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_text.startswith("/project"):
         memory = get_memory_text() or "目前沒有記憶。"
+        core_memory = ""
+
+        for _, content in get_core_memories():
+            core_memory += content + "\n"
 
         tasks = get_todo_tasks()
 
@@ -338,6 +462,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         prompt = f"""
 你是龍蝦AI，是主人的遊戲開發經理。
+
+    核心記憶：
+    {core_memory}
 
 以下是主人的長期記憶：
 {memory}
@@ -364,12 +491,19 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     memory = get_memory_text()
+    core_memory = ""
+
+    for _, content in get_core_memories():
+        core_memory += content + "\n"
 
     if user_text.startswith("/story"):
         topic = user_text.replace("/story", "").strip()
 
         prompt = f"""
 你是龍蝦AI，專門幫主人設計遊戲劇情。
+
+核心記憶：
+{core_memory}
 
 使用者資料：
 {memory}
@@ -393,6 +527,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         prompt = f"""
 你是龍蝦AI，專門幫主人設計遊戲角色。
+
+    核心記憶：
+    {core_memory}
 
 使用者資料：
 {memory}
@@ -418,6 +555,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prompt = f"""
 你是龍蝦AI，專門幫主人寫 Unity C# 遊戲程式。
 
+    核心記憶：
+    {core_memory}
+
 使用者資料：
 {memory}
 
@@ -436,6 +576,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif user_text.startswith("/idea"):
         prompt = f"""
 你是龍蝦AI，要提供今天的遊戲企劃靈感。
+
+    核心記憶：
+    {core_memory}
 
 使用者資料：
 {memory}
@@ -456,6 +599,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif user_text.startswith("/quest"):
         prompt = f"""
 你是龍蝦AI，要根據使用者資料生成今日任務清單。
+
+    核心記憶：
+    {core_memory}
 
 使用者資料：
 {memory}
@@ -558,6 +704,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prompt = f"""
 你是龍蝦AI，是主人的遊戲開發學習助教。
 
+核心記憶：
+{core_memory}
+
 使用者資料：
 {memory}
 
@@ -595,6 +744,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 - 主人的遊戲開發助手
 - 擅長 Unity、Godot、RPG設計、劇情創作
 - 回答要直接、清楚、適合新手
+
+    核心記憶：
+    {core_memory}
 
 使用者資料：
 {memory}
