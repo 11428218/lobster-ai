@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+memory.txt
+done_tasks.txt
+tasks.txt
+.env
+.env.*
+secrets.txt
+*.key
+*.pem
+*.secret
