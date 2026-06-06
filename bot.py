@@ -599,37 +599,6 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 
-    if user_text.startswith("/whatilearned"):
-
-        reports = get_research_reports()
-
-        if not reports:
-            await update.message.reply_text(
-                "目前還沒有學習紀錄。"
-            )
-            return
-
-        text = "🦞 最近學到：\n\n"
-
-        for topic, summary, created_at in reports:
-
-            text += f"""
-📚 {topic}
-🕒 {created_at}
-
-{summary}
-
-----------------
-"""
-
-    await send_long_message(
-        update,
-        text
-    )
-
-    return
-
-
     if user_text.startswith("/donehistory"):
 
         done_tasks = get_done_tasks()
