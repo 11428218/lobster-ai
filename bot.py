@@ -1005,6 +1005,35 @@ async def daily_github_report(app):
 
         save_research(query, summary)
 
+        task_prompt = f"""
+你是龍蝦AI。
+
+根據今天的研究主題與心得，幫主人產生 3 個可以實作的遊戲開發任務。
+
+研究主題：
+{query}
+
+研究心得：
+{summary}
+
+要求：
+- 每個任務都要適合新手
+- 每個任務 30 到 60 分鐘內可以完成
+- 不要編號
+- 不要解釋
+- 每一行只輸出一個任務
+"""
+
+task_response = model.generate_content(task_prompt)
+task_text = getattr(task_response, "text", None) or str(task_response)
+
+for line in task_text.splitlines():
+    task = line.strip()
+
+    if task:
+        task = task.replace("-", "").replace("□", "").strip()
+        add_task(task)
+
         text = f"""
 🦞 今日研究報告
 
@@ -1012,6 +1041,10 @@ async def daily_github_report(app):
 {query}
 
 {summary}
+
+---
+
+我已經根據今天的研究，自動新增 3 個任務到 /tasks。
 
 ---
 
