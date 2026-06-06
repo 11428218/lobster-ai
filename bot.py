@@ -17,6 +17,7 @@ except Exception:
         genai = None
 from secrets_config import get_credentials
 import requests
+import random
 import datetime
 
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,18 @@ genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 CHAT_ID = None
-
+TOPICS = [
+    "unity inventory system",
+    "unity dialogue system",
+    "unity save system",
+    "unity 2d rpg",
+    "unity enemy ai",
+    "unity quest system",
+    "godot inventory system",
+    "pixel art game development",
+    "game design patterns",
+    "procedural generation game"
+]
 async def send_long_message(update, text):
     max_length = 4000
 
@@ -775,7 +787,7 @@ async def daily_github_report(app):
     if CHAT_ID is None:
         return
 
-    query = "unity 2d game development"
+    query = random.choice(TOPICS)
     url = "https://api.github.com/search/repositories"
 
     params = {
@@ -790,7 +802,7 @@ async def daily_github_report(app):
         data = result.json()
         repos = data.get("items", [])
 
-        text = "🦞 今日 GitHub 遊戲開發靈感：\n\n"
+        text = f"🦞 今日 GitHub 遊戲開發靈感\n\n研究主題：{query}\n\n"
 
         for repo in repos:
             text += f"""
