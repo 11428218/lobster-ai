@@ -275,6 +275,40 @@ def get_research_reports(limit=10):
     return rows
 
 
+def get_recent_topics(limit=20):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT topic
+        FROM research_reports
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row[0] for row in rows]
+
+
+def choose_research_topic():
+    recent_topics = get_recent_topics()
+
+    available_topics = [
+        topic for topic in TOPICS
+        if topic not in recent_topics
+    ]
+
+    if not available_topics:
+        return random.choice(TOPICS)
+
+    return random.choice(available_topics)
+
+
 def finish_task(task_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -911,7 +945,7 @@ async def daily_github_report(app):
     if CHAT_ID is None:
         return
 
-    query = random.choice(TOPICS)
+    query = choose_research_topic()
     url = "https://api.github.com/search/repositories"
 
     params = {
