@@ -140,6 +140,20 @@ def delete_memory(memory_id):
     return changed > 0
 
 
+def save_research(topic, summary):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO research_reports
+        (topic, summary)
+        VALUES (?, ?)
+        """,
+        (topic, summary)
+    )
+
+
 def add_task(content):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -173,6 +187,43 @@ def get_done_tasks():
 
     cursor.execute(
         "SELECT id, content, done_at FROM tasks WHERE status='done' ORDER BY done_at DESC"
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return rows
+
+
+def save_research(topic, summary):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO research_reports
+        (topic, summary)
+        VALUES (?, ?)
+        """,
+        (topic, summary)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_research_reports(limit=10):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT topic, summary, created_at
+        FROM research_reports
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,)
     )
 
     rows = cursor.fetchall()
@@ -278,6 +329,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 /learn 關鍵字
 搜尋 GitHub 並請龍蝦AI整理學習重點
+
+/whatilearned
+查看最近學到的知識
 
 /testdaily
 立刻測試每日 GitHub 推播
@@ -436,10 +490,14 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if user_text.startswith("/donehistory"):
+
         done_tasks = get_done_tasks()
 
+
         if not done_tasks:
-            await update.message.reply_text("目前還沒有完成紀錄。")
+            await update.message.reply_text(
+                "目前還沒有完成紀錄。"
+            )
             return
 
         text = "🏆 已完成任務紀錄：\n\n"
@@ -450,6 +508,29 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_long_message(update, text)
         return
 
+        
+    if user_text.startswith("/whatilearned"):
+        reports = get_research_reports()
+
+        if not reports:
+            await update.message.reply_text("目前還沒有學習紀錄。")
+            return
+
+        text = "🦞 最近學到：\n\n"
+
+        for topic, summary, created_at in reports:
+            text += f"""
+📚 {topic}
+🕒 {created_at}
+
+{summary}
+
+----------------
+
+"""
+
+        await send_long_message(update, text)
+        return
     if user_text.startswith("/testdaily"):
         await daily_github_report(context.application)
         await update.message.reply_text("🦞 已測試每日推播。")
@@ -802,25 +883,79 @@ async def daily_github_report(app):
         data = result.json()
         repos = data.get("items", [])
 
-        text = f"🦞 今日 GitHub 遊戲開發靈感\n\n研究主題：{query}\n\n"
+        if not repos:
+            await app.bot.send_message(
+                chat_id=CHAT_ID,
+                text="今天沒有找到 GitHub 專案。"
+            )
+            return
+
+        repo_text = ""
+
+        for repo in repos:
+            repo_text += f"""
+專案：
+{repo["full_name"]}
+
+描述：
+{repo.get("description") or "沒有描述"}
+
+連結：
+{repo["html_url"]}
+"""
+
+        prompt = f"""
+你是龍蝦AI，是主人的遊戲開發研究員。
+
+今天研究主題：
+{query}
+
+以下是 GitHub 搜尋到的專案：
+
+{repo_text}
+
+請整理：
+1. 今天學到什麼
+2. 最重要的三個觀念
+3. 對 Unity RPG 有什麼幫助
+4. 明天應該研究什麼
+
+控制在 300 字內，語氣直接、具體。
+"""
+
+        response = model.generate_content(prompt)
+        summary = getattr(response, "text", None) or str(response)
+
+        save_research(query, summary)
+
+        text = f"""
+🦞 今日研究報告
+
+研究主題：
+{query}
+
+{summary}
+
+---
+
+參考專案：
+"""
 
         for repo in repos:
             text += f"""
 ⭐ {repo["stargazers_count"]}
 📦 {repo["full_name"]}
-📝 {repo.get("description") or "沒有描述"}
 🔗 {repo["html_url"]}
 
 """
 
         await app.bot.send_message(
             chat_id=CHAT_ID,
-            text=text
+            text=text[:4000]
         )
+
     except Exception:
         logger.exception("daily_github_report failed")
-
-
 def main():
     app = Application.builder().token(TOKEN).build()
 

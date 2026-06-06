@@ -31,6 +31,15 @@ def init_db():
         done_at TIMESTAMP
     )
     """)
+    
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
 
     conn.commit()
     conn.close()
