@@ -26,6 +26,49 @@ logger = logging.getLogger(__name__)
 TOKEN, API_KEY = get_credentials()
 DB_FILE = "lobster.db"
 
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS core_memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        status TEXT DEFAULT 'todo',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        done_at TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
 if not TOKEN or not API_KEY:
     raise RuntimeError("BOT_TOKEN 或 GEMINI_API_KEY 尚未設定")
 
@@ -508,7 +551,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_long_message(update, text)
         return
 
-        
+
     if user_text.startswith("/whatilearned"):
         reports = get_research_reports()
 
@@ -957,8 +1000,10 @@ async def daily_github_report(app):
     except Exception:
         logger.exception("daily_github_report failed")
 def main():
-    app = Application.builder().token(TOKEN).build()
 
+    init_db()
+
+    app = Application.builder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT, reply))
 
     async def _daily_job(context: ContextTypes.DEFAULT_TYPE):
