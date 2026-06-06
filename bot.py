@@ -1024,15 +1024,15 @@ async def daily_github_report(app):
 - 每一行只輸出一個任務
 """
 
-task_response = model.generate_content(task_prompt)
-task_text = getattr(task_response, "text", None) or str(task_response)
+        task_response = model.generate_content(task_prompt)
+        task_text = getattr(task_response, "text", None) or str(task_response)
 
-for line in task_text.splitlines():
-    task = line.strip()
+        for line in task_text.splitlines():
+            task = line.strip()
 
-    if task:
-        task = task.replace("-", "").replace("□", "").strip()
-        add_task(task)
+            if task:
+                task = task.replace("-", "").replace("□", "").strip()
+                add_task(task)
 
         text = f"""
 🦞 今日研究報告
