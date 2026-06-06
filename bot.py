@@ -16,6 +16,7 @@ except Exception:
     except Exception:
         genai = None
 from secrets_config import get_credentials
+import os
 import requests
 import random
 import datetime
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 TOKEN, API_KEY = get_credentials()
 DB_FILE = "lobster.db"
+MEMORY_FILE = "memory.txt"
+
+UNITY_PROJECT_PATH = r"D:\tmy\My project"
 
 
 def init_db():
@@ -293,6 +297,34 @@ def get_recent_topics(limit=20):
     conn.close()
 
     return [row[0] for row in rows]
+
+
+def scan_project():
+
+    assets_path = os.path.join(
+        UNITY_PROJECT_PATH,
+        "Assets"
+    )
+
+    result = []
+
+    for root, dirs, files in os.walk(
+        assets_path
+    ):
+
+        for file in files:
+
+            if file.endswith(
+                (
+                    ".cs",
+                    ".unity",
+                    ".prefab"
+                )
+            ):
+
+                result.append(file)
+
+    return result
 
 
 def choose_research_topic():
@@ -566,10 +598,41 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+
+    if user_text.startswith("/whatilearned"):
+
+        reports = get_research_reports()
+
+        if not reports:
+            await update.message.reply_text(
+                "目前還沒有學習紀錄。"
+            )
+            return
+
+        text = "🦞 最近學到：\n\n"
+
+        for topic, summary, created_at in reports:
+
+            text += f"""
+📚 {topic}
+🕒 {created_at}
+
+{summary}
+
+----------------
+"""
+
+    await send_long_message(
+        update,
+        text
+    )
+
+    return
+
+
     if user_text.startswith("/donehistory"):
 
         done_tasks = get_done_tasks()
-
 
         if not done_tasks:
             await update.message.reply_text(
@@ -587,10 +650,13 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if user_text.startswith("/whatilearned"):
+
         reports = get_research_reports()
 
         if not reports:
-            await update.message.reply_text("目前還沒有學習紀錄。")
+            await update.message.reply_text(
+                "目前還沒有學習紀錄。"
+            )
             return
 
         text = "🦞 最近學到：\n\n"
@@ -608,10 +674,32 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await send_long_message(update, text)
         return
+
+
+    if user_text.startswith("/scanproject"):
+
+        files = scan_project()
+
+        if not files:
+            await update.message.reply_text(
+                "找不到 Unity 專案。"
+            )
+            return
+
+        text = "🎮 Unity 專案內容\n\n"
+
+        for file in files[:50]:
+            text += f"{file}\n"
+
+        await send_long_message(update, text)
+        return
+
+
     if user_text.startswith("/testdaily"):
         await daily_github_report(context.application)
         await update.message.reply_text("🦞 已測試每日推播。")
         return
+
 
     if user_text.startswith("/project"):
         memory = get_memory_text() or "目前沒有記憶。"
