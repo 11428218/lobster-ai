@@ -1198,14 +1198,15 @@ async def daily_github_report(app):
             text=text[:4000]
         )
 
-except Exception as e:
-    logger.exception("daily_github_report failed")
+    except Exception as e:
+        logger.exception("daily_github_report failed")
 
-    if CHAT_ID is not None:
-        await app.bot.send_message(
-            chat_id=CHAT_ID,
-            text=f"每日研究報告產生失敗：{e}"
-        )
+        if CHAT_ID is not None:
+            await app.bot.send_message(
+                chat_id=CHAT_ID,
+                text=f"每日研究報告產生失敗：{e}"
+            )
+
 def main():
 
     init_db()
