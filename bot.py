@@ -670,6 +670,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         latest = get_latest_research()
 
+        print("LATEST =", latest)
+
         if not latest:
             await update.message.reply_text(
                 "目前還沒有研究紀錄。"
