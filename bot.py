@@ -30,6 +30,24 @@ MEMORY_FILE = "memory.txt"
 
 UNITY_PROJECT_PATH = r"D:\tmy\My project"
 
+def get_latest_research():
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT topic, summary
+        FROM research_reports
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    return row
+
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -76,7 +94,7 @@ def init_db():
 if not TOKEN or not API_KEY:
     raise RuntimeError("BOT_TOKEN 或 GEMINI_API_KEY 尚未設定")
 
-genai.configure(api_key=API_KEY)
+genai.configure(api_key="API_KEY")
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -445,6 +463,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /testdaily
 立刻測試每日 GitHub 推播
 
+/implement
+根據最近研究自動產生Unity實作
+
 /help
 查看指令列表
 """
@@ -642,6 +663,60 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
 
         await send_long_message(update, text)
+        return
+
+
+    if user_text.startswith("/implement"):
+
+        latest = get_latest_research()
+
+        if not latest:
+            await update.message.reply_text(
+                "目前還沒有研究紀錄。"
+            )
+            return
+
+        topic, summary = latest
+
+        prompt = f"""
+你是資深 Unity 工程師。
+
+根據以下研究內容：
+
+主題：
+{topic}
+
+研究內容：
+{summary}
+
+請直接輸出：
+
+1. 最值得實作的功能
+2. 完整 Unity C# 程式
+3. 掛載方法
+4. 適合新手的說明
+
+要求：
+
+- Unity 2022+
+- 可以直接建立 .cs 使用
+- 不要寫偽代碼
+- 程式碼完整
+"""
+
+        response = model.generate_content(prompt)
+
+        text = getattr(
+            response,
+            "text",
+            None
+        ) or str(response)
+
+        await send_long_message(
+            update,
+            text
+        )
+
         return
 
 
