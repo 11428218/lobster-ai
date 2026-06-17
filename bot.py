@@ -94,7 +94,7 @@ def init_db():
 if not TOKEN or not API_KEY:
     raise RuntimeError("BOT_TOKEN 或 GEMINI_API_KEY 尚未設定")
 
-genai.configure(api_key="API_KEY")
+genai.configure(api_key=API_KEY)
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
